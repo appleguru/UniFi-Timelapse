@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """Grab a JPEG snapshot from a Ubiquiti camera at a specified interval.
 
-Usage: python uvcsnapshot.py -i INTERVAL -c CAMERA -p PASSWORD -o OUTPUT
+Usage: python uvcsnapshot.py -c CAMERA -p PASSWORD -o OUTPUT
 
 Required arguments:
-    -i interval in seconds
     -c camera IP address
     -p camera password
     -o path to output directory
@@ -13,7 +12,7 @@ Optional arguments:
     -u camera username, defaults to ubnt
 
 Example:
-    python uvcsnapshot.py -i 10 -c 192.168.0.100 -p pass1234 -o mysnaps
+    python uvcsnapshot.py -c 192.168.0.100 -p pass1234 -o mysnaps
 """
 
 import json
@@ -77,7 +76,7 @@ class Snapshooter:
 
     def login(self):
         """Login to the camera and create a session."""
-        url = 'http://{}/api/1.1/login'.format(self.camera)
+        url = 'https://{}/api/1.1/login'.format(self.camera)
         data = json.dumps({
             'username': self.username,
             'password': self.password
@@ -95,7 +94,7 @@ class Snapshooter:
 
     def to_bytes(self):
         """Get a JPEG snapshot as bytes."""
-        url = 'http://{}/snap.jpeg'.format(self.camera)
+        url = 'https://{}/snap.jpeg'.format(self.camera)
         response = self.open(url, auth=True)
         return response.read()
 
@@ -115,11 +114,10 @@ if __name__ == '__main__':
     import time
     import datetime
 
-    parser = argparse.ArgumentParser(description='Grab a snapshot from a Ubiquiti camera at a specified interval.')
+    parser = argparse.ArgumentParser(description='Grab a snapshot from a Ubiquiti camera')
     parser.add_argument('-u', '--username', nargs='?', default='ubnt', help='camera username, defaults to ubnt')
     required_named = parser.add_argument_group('required arguments')
-    required_named.add_argument('-i', '--interval', type=int, required=True, help='interval in seconds')
-    required_named.add_argument('-c', '--camera', required=True, help='camera IP address')
+    required_named.add_argument('-c', '--camera', required=True, help='camera IP address or hostname')
     required_named.add_argument('-p', '--password', required=True, help='camera password')
     required_named.add_argument('-o', '--output', required=True, help='path to output directory')
     args = parser.parse_args()
@@ -129,13 +127,16 @@ if __name__ == '__main__':
         password=args.password,
         username=args.username,
     )
-
-    while True:
-        file_name = '%s.jpg' % datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-        file_path = os.path.join(args.output, file_name)
-        try:
-            snapshooter.to_file(file_path)
-            print(file_name)
-        except Exception as e:
-            print(('ERROR %s. %s' % (file_name, str(e))))
-        time.sleep(args.interval)
+    
+    timestamp = datetime.datetime.now()
+    save_directory = os.path.join(args.output, timestamp.strftime('%Y/%m/%d/'))
+    if not os.path.exists(save_directory):
+      os.makedirs(save_directory)
+    
+    file_name = '%s.jpg' % timestamp.strftime('%Y%m%d%H%M%S')
+    file_path = os.path.join(save_directory, file_name)
+    try:
+        snapshooter.to_file(file_path)
+        print(file_name)
+    except Exception as e:
+        print(('ERROR %s. %s' % (file_name, str(e))))
