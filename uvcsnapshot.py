@@ -12,7 +12,7 @@ Optional arguments:
     -u camera username, defaults to ubnt
 
 Example:
-    python uvcsnapshot.py -c 192.168.0.100 -p pass1234 -o mysnaps
+    python uvcsnapshot.py -x 5 -i 10 -c 192.168.0.100 -p pass1234 -o mysnaps
 """
 
 import json
@@ -113,10 +113,13 @@ if __name__ == '__main__':
     import os
     import time
     import datetime
+    import shutil
 
-    parser = argparse.ArgumentParser(description='Grab a snapshot from a Ubiquiti camera')
+    parser = argparse.ArgumentParser(description='Grab a snapshot from a Ubiquiti camera at a specified interval.')
     parser.add_argument('-u', '--username', nargs='?', default='ubnt', help='camera username, defaults to ubnt')
     required_named = parser.add_argument_group('required arguments')
+    required_named.add_argument('-x', '--cron_interval', type=int, required=True, help='interval in minutes')
+    required_named.add_argument('-i', '--interval', type=int, required=True, help='interval in seconds')
     required_named.add_argument('-c', '--camera', required=True, help='camera IP address or hostname')
     required_named.add_argument('-p', '--password', required=True, help='camera password')
     required_named.add_argument('-o', '--output', required=True, help='path to output directory')
@@ -128,15 +131,24 @@ if __name__ == '__main__':
         username=args.username,
     )
     
-    timestamp = datetime.datetime.now()
-    save_directory = os.path.join(args.output, timestamp.strftime('%Y/%m/%d/'))
-    if not os.path.exists(save_directory):
-      os.makedirs(save_directory)
-    
-    file_name = '%s.jpg' % timestamp.strftime('%Y%m%d%H%M%S')
-    file_path = os.path.join(save_directory, file_name)
-    try:
-        snapshooter.to_file(file_path)
-        print(file_name)
-    except Exception as e:
-        print(('ERROR %s. %s' % (file_name, str(e))))
+    file_name = 'image.jpg'
+    file_path = os.path.join(args.output, file_name)
+    loopcount = ( args.cron_interval * 60 ) / args.interval
+    for x in range(loopcount):
+      timestamp = datetime.datetime.now()
+      try:
+          snapshooter.to_file(file_path)
+          print(file_name)
+      except Exception as e:
+          print(('ERROR %s. %s' % (file_name, str(e))))
+      
+      #Copy the first image of the sequence to the archive
+      if x == 0:
+          archive_directory = os.path.join(args.output, timestamp.strftime('archive/%Y/%m/%d/'))
+          if not os.path.exists(archive_directory):
+            os.makedirs(archive_directory)
+
+          archive_file_name = '%s.jpg' % timestamp.strftime('%Y%m%d%H%M')
+          archive_file_path = os.path.join(archive_directory, archive_file_name)
+          shutil.copy2(file_path, archive_file_path) #Every cron interval, copy the first image to the archive
+      time.sleep(args.interval)
