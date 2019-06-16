@@ -133,7 +133,7 @@ if __name__ == '__main__':
     
     file_name = 'image.jpg'
     file_path = os.path.join(args.output, file_name)
-    loopcount = ( args.cron_interval * 60 ) / args.interval
+    loopcount = int(( args.cron_interval * 60 ) / args.interval)
     for x in range(loopcount):
       timestamp = datetime.datetime.now()
       try:
