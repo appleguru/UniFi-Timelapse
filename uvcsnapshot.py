@@ -56,6 +56,7 @@ class Snapshooter:
         headers = {
             'Content-Type': 'application/json'
         }
+        request = Request(url, data=data, headers=headers)
         try:
             response = urlopen(request)
         except HTTPError as e:
