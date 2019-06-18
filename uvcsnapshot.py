@@ -18,11 +18,9 @@ Example:
 import json
 
 try:
-    from http.cookiejar import CookieJar
     from urllib.error import HTTPError
     from urllib.request import Request, urlopen
 except ImportError:
-    from cookielib import CookieJar
     from urllib2 import HTTPError, Request, urlopen
 
 
@@ -39,11 +37,9 @@ class Snapshooter:
         self.camera = camera
         self.password = password
         self.username = username
-        self.jar = CookieJar()
-        self.login()
 
-    def open(self, url, data=None, headers={}, auth=False):
-        """Open a URL and persist cookies in a CookieJar.
+    def open(self, url, data=None, headers={}):
+        """Open a URL
 
         Args:
             url (str): URL
@@ -51,32 +47,8 @@ class Snapshooter:
             headers (dict): additional headers
             auth (bool): does request require login?
         """
-        if auth:
-            # If auth is required, check if we have a session cookie.
-            has_session = False
-            for cookie in self.jar:
-                if cookie.name == 'authId':
-                    has_session = True
-                    break
-            if not has_session:
-                self.login()
-        request = Request(url, data=data, headers=headers)
-        self.jar.add_cookie_header(request)
-        try:
-            response = urlopen(request)
-        except HTTPError as e:
-            if auth and e.code == 401:
-                # Session cookie is invalid. Login and try again.
-                self.login()
-                response = urlopen(request)
-            else:
-                raise
-        self.jar.extract_cookies(response, request)
-        return response
 
-    def login(self):
-        """Login to the camera and create a session."""
-        url = 'https://{}/api/1.1/login'.format(self.camera)
+        url = 'https://{}/api/1.2/snapshot'.format(self.camera)
         data = json.dumps({
             'username': self.username,
             'password': self.password
@@ -85,17 +57,18 @@ class Snapshooter:
             'Content-Type': 'application/json'
         }
         try:
-            response = self.open(url, data, headers)
+            response = urlopen(request)
         except HTTPError as e:
             if e.code == 401:
                 raise Exception('401 Invalid credentials.')
             else:
                 raise
+        return response
 
     def to_bytes(self):
         """Get a JPEG snapshot as bytes."""
         url = 'https://{}/snap.jpeg'.format(self.camera)
-        response = self.open(url, auth=True)
+        response = self.open(url)
         return response.read()
 
     def to_file(self, path):
